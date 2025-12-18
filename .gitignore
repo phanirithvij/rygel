@@ -61,3 +61,10 @@ package-lock.json
 !/vendor/typescript/node_modules/
 
 !.gitkeep
+
+result*
+
+/source
+/outputs
+
+.direnv
