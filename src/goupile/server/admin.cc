@@ -14,6 +14,7 @@
 #include "vendor/libsodium/src/libsodium/include/sodium.h"
 #define MINIZ_NO_ZLIB_COMPATIBLE_NAMES
 #include "vendor/miniz/miniz.h"
+#include "vendor/incbin/incbin.h"
 
 #include <time.h>
 #if defined(_WIN32)
@@ -23,46 +24,9 @@
     #include <sys/stat.h>
 #endif
 
+INCTXT(DefaultConfig, "src/goupile/dist/linux/template.ini");
+
 namespace K {
-
-static const char *DefaultConfig =
-R"([Data]
-# RootDirectory = .
-# DatabaseFile = goupile.db
-# ArchiveDirectory = archives
-# SnapshotDirectory = snapshots
-# SynchronousFull = Off
-# UseSnapshots = On
-# AutoCreate = On
-# AutoMigrate = On
-
-[Security]
-# UserPassword = Moderate
-# AdminPassword = Moderate
-# RootPassword = Hard
-
-[Demo]
-# DemoMode = Off
-
-[SMS]
-# Provider = Twilio
-# AuthID = <AuthID>
-# AuthToken = <AuthToken>
-# From = <Phone number or alphanumeric sender>
-
-[SMTP]
-# URL = <Curl URL>
-# Username = <Username> (if any)
-# Password = <Password> (if any)
-# From = <Sender email address>
-
-[HTTP]
-# SocketType = Dual
-# Port = 8889
-# Threads =
-# AsyncThreads =
-# ClientAddress = Socket
-)";
 
 #pragma pack(push, 1)
 struct ArchiveIntro {
@@ -211,7 +175,7 @@ T(R"(Usage: %!..+%1 init [option...] [directory]%!0)"), FelixTarget);
         const char *filename = Fmt(&temp_alloc, "%1%/goupile.ini", root_directory).ptr;
         files.Append(filename);
 
-        if (!WriteFile(DefaultConfig, filename))
+        if (!WriteFile(gDefaultConfigData, filename))
             return 1;
 
 #if !defined(_WIN32)
