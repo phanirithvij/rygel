@@ -1,0 +1,67 @@
+name: Build and Release
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version (e.g., v1.0.0) - leave empty to use the latest tag"
+        required: false
+        type: string
+      project:
+        description: "Which project to release"
+        required: true
+        type: choice
+        options:
+          - rekkord
+          - goupile
+          - tytools
+          - meestic
+          #- felix
+          #- heimdall
+jobs:
+  release:
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v5
+        with:
+          fetch-depth: 0
+      - name: Determine newly tagged version
+        id: version
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email '41898282+github-actions[bot]@users.noreply.github.com'
+
+          LATEST_TAG=$(git tag --list --format="%(refname:short)" --sort taggerdate "${{ inputs.project }}*" 2>/dev/null | tail -1)
+          LATEST_TAG=$(echo "$LATEST_TAG" | awk -F/ '{print $NF}')
+
+          echo "version=$LATEST_TAG" >>$GITHUB_OUTPUT
+      - name: Building source tarball for ${{ inputs.project }}
+        run: |
+          export VERSION="${{ steps.version.outputs.version }}"
+          tag="${{ inputs.project }}/${{ steps.version.outputs.version }}"
+
+          git tag -s $tag -m "Bump ${{ inputs.project }}"
+
+          sudo apt-get update
+          sudo apt-get install build-essential libudev-dev qt6-base-dev qt6-base-dev-tools qt6-svg-dev
+
+          bash src/${{ inputs.project }}/dist/source/source.sh
+          bash src/${{ inputs.project }}/dist/linux/debian.sh
+          bash src/${{ inputs.project }}/dist/linux/rpm.sh
+
+          # TODO publising docker images to ghcr/dockerhub/quay
+          # bash src/${{ inputs.project }}/dist/docker/docker.sh
+      - name: Push tag and release
+        run: |
+          tag="${{ inputs.project }}/${{ steps.version.outputs.version }}"
+
+          git push origin $tag
+
+          gh release create $tag \
+            --title "Release $tag" \
+            --notes "Release $tag" \
+            --latest \
+            bin/Packages/*tar* bin/Packages/*.deb bin/Packages/*.rpm
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
