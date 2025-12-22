@@ -16,9 +16,15 @@ build() {
     dnf install -y clang lld gcc-toolset-14-libatomic-devel
 
     ./bootstrap.sh
-    ./felix -pParanoid --host=:clang:lld goupile
+    profile=Paranoid
+    ./felix -p$profile --host=:clang:lld goupile 2>/dev/null || \
+      mkdir -p "$(\
+        find bin/$profile -maxdepth 1 \
+        -type d ! -path "bin/${profile}" -print\
+      )/Misc"
+    ./felix -p$profile --host=:clang:lld goupile
 
-    install -D -m0755 bin/Paranoid/goupile ${ROOT_DIR}/bin/goupile
+    install -D -m0755 bin/$profile/goupile ${ROOT_DIR}/bin/goupile
 
     install -D -m0755 src/goupile/dist/linux/manage.py ${ROOT_DIR}/usr/lib/goupile/manage.py
     install -D -m0755 src/goupile/dist/linux/generator.py ${ROOT_DIR}/usr/lib/goupile/generator.py
