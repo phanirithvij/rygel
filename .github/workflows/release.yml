@@ -3,12 +3,12 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Release version (e.g., v1.0.0) - leave empty to use the latest tag"
+        description: "Release version (e.g., 1.0.0) - leave empty to use the latest tag"
         required: false
         type: string
       project:
-        description: "Which project to release"
-        required: true
+        description: "Which project to release - leave empty to chose the project with the latest tag"
+        required: false
         type: choice
         options:
           - rekkord
@@ -26,37 +26,38 @@ jobs:
       - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v5
         with:
           fetch-depth: 0
-      - name: Determine newly tagged version
+      - name: Determine newly tagged project and version
         id: version
         run: |
           git config --global user.name 'github-actions[bot]'
           git config --global user.email '41898282+github-actions[bot]@users.noreply.github.com'
 
           LATEST_TAG=$(git tag --list --format="%(refname:short)" --sort taggerdate "${{ inputs.project }}*" 2>/dev/null | tail -1)
+          PROJECT=$(echo "$LATEST_TAG" | awk -F/ '{print $(NF-1)}') # fallback to latest project
           LATEST_TAG=$(echo "$LATEST_TAG" | awk -F/ '{print $NF}')
 
+          echo "project=$PROJECT" >>$GITHUB_OUTPUT
           echo "version=$LATEST_TAG" >>$GITHUB_OUTPUT
-      - name: Building source tarball for ${{ inputs.project }}
+      - name: Build artifacts
         run: |
-          export VERSION="${{ steps.version.outputs.version }}"
-          tag="${{ inputs.project }}/${{ steps.version.outputs.version }}"
+          PROJECT="${{ steps.version.outputs.project }}"
+          VERSION_="${{ steps.version.outputs.version }}"
 
-          git tag -s $tag -m "Bump ${{ inputs.project }}"
+          tag="$PROJECT/$VERSION_"
+          git checkout $tag
 
           sudo apt-get update
           sudo apt-get install build-essential libudev-dev qt6-base-dev qt6-base-dev-tools qt6-svg-dev
 
-          bash src/${{ inputs.project }}/dist/source/source.sh
-          bash src/${{ inputs.project }}/dist/linux/debian.sh
-          bash src/${{ inputs.project }}/dist/linux/rpm.sh
+          bash src/$PROJECT/dist/source/source.sh
+          bash src/$PROJECT/dist/linux/debian.sh
+          bash src/$PROJECT/dist/linux/rpm.sh
 
           # TODO publising docker images to ghcr/dockerhub/quay
-          # bash src/${{ inputs.project }}/dist/docker/docker.sh
+          # bash src/$PROJECT/dist/docker/docker.sh
       - name: Push tag and release
         run: |
-          tag="${{ inputs.project }}/${{ steps.version.outputs.version }}"
-
-          git push origin $tag
+          tag="${{ steps.version.outputs.project }}/${{ steps.version.outputs.version }}"
 
           gh release create $tag \
             --title "Release $tag" \
