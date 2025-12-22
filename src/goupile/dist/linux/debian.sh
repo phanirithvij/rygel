@@ -15,9 +15,15 @@ DOCKER_IMAGE=debian12
 
 build() {
     ./bootstrap.sh
-    ./felix -pParanoid --host=$1:clang-18:lld-18 goupile
+    profile=Paranoid
+    ./felix -p$profile --host=$1:clang-18:lld-18 goupile 2>/dev/null || \
+      mkdir -p "$(\
+        find bin/$profile -maxdepth 1 \
+        -type d ! -path "bin/${profile}" -print\
+      )/Misc"
+    ./felix -p$profile --host=$1:clang-18:lld-18 goupile
 
-    install -D -m0755 bin/Paranoid/goupile ${ROOT_DIR}/bin/goupile
+    install -D -m0755 bin/$profile/goupile ${ROOT_DIR}/bin/goupile
 
     install -D -m0755 src/goupile/dist/linux/manage.py ${ROOT_DIR}/usr/lib/goupile/manage.py
     install -D -m0755 src/goupile/dist/linux/generator.py ${ROOT_DIR}/usr/lib/goupile/generator.py
